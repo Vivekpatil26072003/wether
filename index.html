@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Weather App with Map</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: 'Lato', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: auto;
+            position: relative;
+            transition: background 1s ease-in-out;
+        }
+
+        body.morning {
+            background: url(https://example.com/morning.jpg) no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        body.evening {
+            background: url(https://example.com/evening.jpg) no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        body.night {
+            background: url(https://example.com/night.jpg) no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .theme-toggle-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+        }
+
+        #theme-toggle {
+            background-color: #f39c12;
+            color: #34495e;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.3s ease-in-out;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 60px auto;
+            padding: 30px;
+            background-color: rgba(36, 29, 29, 0.8);
+            border-radius: 15px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 2;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 3rem;
+            color: #f39c12;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .inputs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 5px;
+        }
+
+        .inputs input[type="text"] {
+            height: 50px;
+            width: 70%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid #f39c12;
+            background-color: #34495e;
+            color: #ecf0f1;
+            font-size: 1.1rem;
+        }
+
+        #map {
+            height: 400px;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+
+        .forecast-wrapper {
+            margin-top: 20px;
+        }
+
+        .data-display {
+            margin: 20px auto;
+            padding: 20px;
+            border: 2px solid #f39c12;
+            border-radius: 15px;
+            background-color: rgba(52, 73, 94, 0.9);
+            color: #ecf0f1;
+            text-align: center;
+            max-width: 700px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .data-display h2 {
+            margin-bottom: 15px;
+            font-size: 2rem;
+            color: #f39c12;
+            text-transform: uppercase;
+        }
+
+        .data-display p {
+            margin: 8px 0;
+            font-size: 1.2rem;
+        }
+
+        .box {
+            padding: 20px;
+            border: 2px solid #f39c12;
+            border-radius: 15px;
+            background-color: rgba(52, 73, 94, 0.9);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        body.morning {
+            background: url('https://cardinalwxservice.com/wp-content/uploads/2019/09/Fall-1.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        body.evening {
+            background: url('https://wallpaperaccess.com/full/3265126.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        body.night {
+            background: url('https://tse1.mm.bing.net/th?id=OIP.6WiX0W7UmImKTEC1jnmHRAHaE8&pid=Api&P=0&h=180') no-repeat center center fixed;
+            background-size: cover;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="theme-toggle-btn">
+        <button id="theme-toggle">Morning</button>
+    </div>
+
+    <div class="container">
+        <h1>Weather App</h1>
+        <div class="inputs">
+            <input type="text" placeholder="Enter city name..." id="cityinput">
+            <input type="submit" value="Search" id="add">
+            <button id="clear">Clear</button>
+        </div>
+        <div id="loading" class="spinner"></div>
+
+        <div class="box">
+            <div class="wrapper">
+                <div class="data-display card">
+                    <img id="weather-icon" alt="Weather Icon" style="width: 80px; height: 80px; margin-bottom: 10px;">
+                    <h2 id="cityoutput">City Name</h2>
+                    <p id="description">Description: <span>Clear Sky</span></p>
+                    <p id="temp">Temperature: <span>25°C</span></p>
+                    <p id="wind">Wind Speed: <span>10 km/h</span></p>
+                    <p id="humidity">Humidity: <span>50%</span></p>
+                    <p id="pressure">Pressure: <span>1015 hPa</span></p>
+                    <p id="sunrise">Sunrise: <span>6:00 AM</span></p>
+                    <p id="sunset">Sunset: <span>6:00 PM</span></p>
+                </div>
+            </div>
+            <div id="map"></div>
+            <div class="forecast-wrapper">
+                <h3>5-Day Temperature Forecast</h3>
+                <canvas id="five-day-forecast-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const inputvalue = document.querySelector('#cityinput');
+        const btn = document.querySelector('#add');
+        const clearBtn = document.querySelector('#clear');
+        const city = document.querySelector('#cityoutput');
+        const descrip = document.querySelector('#description');
+        const temp = document.querySelector('#temp');
+        const wind = document.querySelector('#wind');
+        const humidity = document.querySelector('#humidity');
+        const pressure = document.querySelector('#pressure');
+        const sunrise = document.querySelector('#sunrise');
+        const sunset = document.querySelector('#sunset');
+        const weatherIcon = document.querySelector('#weather-icon');
+        const fiveDayForecastChartCanvas = document.querySelector('#five-day-forecast-chart');
+        const apik = "024dd355d59d9ccf24e7493212354481";
+        let fiveDayForecastChart;
+        let map;
+        let marker;
+
+        function initializeMap(lat, lon) {
+            if (!map) {
+                map = L.map('map').setView([lat, lon], 10);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+            } else {
+                map.setView([lat, lon], 10);
+                if (marker) map.removeLayer(marker);
+            }
+            marker = L.marker([lat, lon]).addTo(map).bindPopup(`Location: [${lat}, ${lon}]`).openPopup();
+        }
+
+        function fetchFiveDayForecast(lat, lon) {
+            const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apik}`;
+            fetch(forecastUrl)
+                .then(res => res.json())
+                .then(data => {
+                    const dailyData = data.list.filter(entry => entry.dt_txt.includes('12:00:00')).slice(0, 5);
+                    const labels = dailyData.map(day => new Date(day.dt * 1000).toLocaleDateString());
+                    const tempValues = dailyData.map(day => (day.main.temp - 273.15).toFixed(1));
+
+                    updateFiveDayForecastChart(labels, tempValues);
+                })
+                .catch(err => console.error('Error fetching 5-day forecast:', err));
+        }
+
+        function updateFiveDayForecastChart(labels, tempValues) {
+            if (fiveDayForecastChart) {
+                fiveDayForecastChart.destroy();
+            }
+
+            const gradient = fiveDayForecastChartCanvas.getContext('2d').createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(46, 204, 113, 0.6)');
+            gradient.addColorStop(1, 'rgba(46, 204, 113, 0.1)');
+
+            fiveDayForecastChart = new Chart(fiveDayForecastChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: tempValues,
+                        borderColor: 'rgba(46, 204, 113, 1)',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(46, 204, 113, 1)',
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: '#ecf0f1',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold',
+                                },
+                            },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `${context.dataset.label}: ${context.raw}°C`;
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#ecf0f1', font: { size: 12 } },
+                        },
+                        y: {
+                            ticks: { color: '#ecf0f1', font: { size: 12 } },
+                        },
+                    },
+                },
+            });
+        }
+
+        btn.addEventListener('click', () => {
+            const cityname = inputvalue.value;
+            const url = `https://api.openweathermap.org/data/2.5/weather?q=${cityname}&appid=${apik}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    city.textContent = `City: ${data.name}`;
+                    descrip.textContent = `Description: ${data.weather[0].description}`;
+                    temp.textContent = `Temperature: ${(data.main.temp - 273.15).toFixed(2)}°C`;
+                    wind.textContent = `Wind Speed: ${data.wind.speed} km/h`;
+                    humidity.textContent = `Humidity: ${data.main.humidity}%`;
+                    pressure.textContent = `Pressure: ${data.main.pressure} hPa`;
+                    sunrise.textContent = `Sunrise: ${new Date(data.sys.sunrise * 1000).toLocaleTimeString()}`;
+                    sunset.textContent = `Sunset: ${new Date(data.sys.sunset * 1000).toLocaleTimeString()}`;
+                    weatherIcon.src = `https://openweathermap.org/img/wn/${data.weather[0].icon}.png`;
+
+                    const lat = data.coord.lat;
+                    const lon = data.coord.lon;
+
+                    initializeMap(lat, lon);
+                    fetchFiveDayForecast(lat, lon);
+                })
+                .catch(err => console.error('Error fetching weather data:', err));
+        });
+
+        clearBtn.addEventListener('click', () => {
+            inputvalue.value = '';
+            city.textContent = 'City Name';
+            descrip.textContent = 'Description: Clear Sky';
+            temp.textContent = 'Temperature: 25°C';
+            wind.textContent = 'Wind Speed: 10 km/h';
+            humidity.textContent = 'Humidity: 50%';
+            pressure.textContent = 'Pressure: 1015 hPa';
+            sunrise.textContent = 'Sunrise: 6:00 AM';
+            sunset.textContent = 'Sunset: 6:00 PM';
+            weatherIcon.src = '';
+            if (fiveDayForecastChart) fiveDayForecastChart.destroy();
+        });
+
+        const themeToggleBtn = document.querySelector('#theme-toggle');
+        const body = document.querySelector('body');
+        let currentTheme = 'morning'; // Default theme
+
+        themeToggleBtn.addEventListener('click', () => {
+            if (currentTheme === 'morning') {
+                body.classList.remove('morning');
+                body.classList.add('evening');
+                themeToggleBtn.textContent = 'Evening';
+                currentTheme = 'evening';
+            } else if (currentTheme === 'evening') {
+                body.classList.remove('evening');
+                body.classList.add('night');
+                themeToggleBtn.textContent = 'Night';
+                currentTheme = 'night';
+            } else if (currentTheme === 'night') {
+                body.classList.remove('night');
+                body.classList.add('morning');
+                themeToggleBtn.textContent = 'Morning';
+                currentTheme = 'morning';
+            }
+        });
+
+    </script>
+</body>
+
+</html>
